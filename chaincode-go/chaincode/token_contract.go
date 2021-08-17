@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 	"log"
 	"strconv"
-
-	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
+
 type TokenInterface interface {
- 	TransferFrom(ctx contractapi.TransactionContextInterface, from string, to string, value int) error
+	TransferFrom(ctx contractapi.TransactionContextInterface, from string, to string, value int) error
 	BalanceOf(ctx contractapi.TransactionContextInterface, account string) (int, error)
 }
 

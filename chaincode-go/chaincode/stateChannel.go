@@ -1,12 +1,10 @@
 package chaincode
 
-
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
-	"sort"
 	"strings"
 )
 
@@ -18,7 +16,6 @@ type StateChannel struct {
 
 type token struct {
 }
-
 
 var channelCounter uint //channelCount
 
@@ -104,50 +101,47 @@ func (sc *StateChannel) CreateChannel(ctx contractapi.TransactionContextInterfac
 	}
 	err = ctx.GetStub().PutState(string(chId), []byte(channelName))
 
-
 	return channelCounter, nil
 }
-func (sc *StateChannel)CreateWithDeposit(ctx contractapi.TransactionContextInterface,other string,channelName string,channelAdd string,amount uint)  (uint,error){
-	chId ,err := sc.CreateChannel(ctx,other,channelName,channelAdd)
-	if err !=nil{
-		return 0,errors.New("Create channel failed\n")
+func (sc *StateChannel) CreateWithDeposit(ctx contractapi.TransactionContextInterface, other string, channelName string, channelAdd string, amount uint) (uint, error) {
+	chId, err := sc.CreateChannel(ctx, other, channelName, channelAdd)
+	if err != nil {
+		return 0, errors.New("Create channel failed\n")
 	}
-	err  = sc.deposit(ctx, chId, amount)
-	if err!= nil{
+	err = sc.deposit(ctx, chId, amount)
+	if err != nil {
 		return 0, err
 	}
 
 	return 0, err
 }
-func (sc *StateChannel)deposit(ctx contractapi.TransactionContextInterface,chId uint , amount uint)error{
+func (sc *StateChannel) deposit(ctx contractapi.TransactionContextInterface, chId uint, amount uint) error {
 	channel := channels[chId]
 	clientID, err := ctx.GetClientIdentity().GetID()
-	if err != nil{
+	if err != nil {
 		return err
 	}
-	err = sc.token.TransferFrom(ctx, clientID,channel.tokenAddress, int(amount))
-	if err!=nil{
+	err = sc.token.TransferFrom(ctx, clientID, channel.tokenAddress, int(amount))
+	if err != nil {
 		return err
 	}
 	return nil
 }
+
 //return both playerID
-func (sc *StateChannel)getPlayers(ctx contractapi.TransactionContextInterface,channelName string)(error,string){
-	channelByte ,err:= ctx.GetStub().GetState(channelName)
-	if err !=nil{
-		return errors.New("Create channel failed\n"),""
+func (sc *StateChannel) getPlayers(ctx contractapi.TransactionContextInterface, channelName string) (error, string) {
+	channelByte, err := ctx.GetStub().GetState(channelName)
+	if err != nil {
+		return errors.New("Create channel failed\n"), ""
 	}
 	channel := new(Channel)
 	err = json.Unmarshal(channelByte, &channel)
-	if err !=nil{
+	if err != nil {
 		return errors.New("Unmarshal json faild"), ""
 	}
-	player := channel.left.addr+channel.right.addr
-	return nil,player
+	player := channel.left.addr + channel.right.addr
+	return nil, player
 }
-
-
-
 
 func (sc *StateChannel) ReadAsset(ctx contractapi.TransactionContextInterface, chId string) (*Channel, error) {
 	assetJSON, err := ctx.GetStub().GetState(chId)
@@ -167,27 +161,22 @@ func (sc *StateChannel) ReadAsset(ctx contractapi.TransactionContextInterface, c
 	return &channel, nil
 }
 
-
-func (sc *StateChannel)SendTokenTo(ctx contractapi.TransactionContextInterface,from ,to, channelName string , amount uint)error{
-	channelByte ,err:= ctx.GetStub().GetState(channelName)
-	if err !=nil{
-		return errors.New("Get channel failed\n"),""
+func (sc *StateChannel) SendTokenTo(ctx contractapi.TransactionContextInterface, from, to, channelName string, amount uint) error {
+	channelByte, err := ctx.GetStub().GetState(channelName)
+	if err != nil {
+		return errors.New("Get channel failed\n")
 	}
 	channel := new(Channel)
 	err = json.Unmarshal(channelByte, &channel)
 
 	clientID, err := ctx.GetClientIdentity().GetID()
-	if err != nil{
+	if err != nil {
 		return err
 	}
-	if strings.Compare(clientID,channel.left.addr)==0||strings.Compare(clientID,channel.right.addr)==0{
-		
-
+	if strings.Compare(clientID, channel.left.addr) == 0 || strings.Compare(clientID, channel.right.addr) == 0 {
 
 	}
 
-	err = sc.token.TransferFrom(ctx, clientID,channel.tokenAddress, int(amount))
-
+	err = sc.token.TransferFrom(ctx, clientID, channel.tokenAddress, int(amount))
 
 }
-

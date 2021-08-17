@@ -2,13 +2,8 @@ package chaincode
 
 type ChannelInterface interface {
 	AddChannel(ChannelInterface)
-
 }
 
-func  AddChannel (channel ChannelInterface) error {
-
-
-
-
+func AddChannel(channel ChannelInterface) error {
 
 }
