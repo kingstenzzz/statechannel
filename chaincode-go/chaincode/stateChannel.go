@@ -18,11 +18,12 @@ type token struct {
 }
 
 var channelCounter uint //channelCount
+var mapAddress = make(map[string]uint32)
 
 // event provides an organized struct for emitting events
 type Player struct {
 	addr       string `json:"from"`
-	credit     int    `json:"credit"`
+	credit     uint   `json:"credit"`
 	withdrawal uint   `json:"withdrawal"`
 	withdrawn  uint   `json:"withdrawn"`
 	deposit    uint   `json:"deposit"`
@@ -46,8 +47,7 @@ type Payment struct {
 
 type Channel struct {
 	tokenAddress string
-	left         Player
-	right        Player
+	platers      [10]Player
 	bestRound    int
 	status       Status
 	deadline     uint
@@ -76,8 +76,12 @@ func (sc *StateChannel) CreateChannel(ctx contractapi.TransactionContextInterfac
 
 	chId := channelCounter
 	channel.tokenAddress = channelAdd
-	channel.left.addr = clientID
-	channel.right.addr = other
+	channel.platers[1].addr = clientID
+	channel.platers[2].addr = other
+
+	mapAddress[clientID] = 1
+	mapAddress[other] = 2
+
 	channel.bestRound = -1
 	channel.status = OK
 	channel.deadline = 0
@@ -139,8 +143,14 @@ func (sc *StateChannel) getPlayers(ctx contractapi.TransactionContextInterface, 
 	if err != nil {
 		return errors.New("Unmarshal json faild"), ""
 	}
-	player := channel.left.addr + channel.right.addr
-	return nil, player
+	Players := ""
+	for _, player := range channel.platers {
+		Players += player.addr
+		if len(player.addr) == 0 {
+			break
+		}
+	}
+	return nil, Players
 }
 
 func (sc *StateChannel) ReadAsset(ctx contractapi.TransactionContextInterface, chId string) (*Channel, error) {
@@ -173,10 +183,33 @@ func (sc *StateChannel) SendTokenTo(ctx contractapi.TransactionContextInterface,
 	if err != nil {
 		return err
 	}
-	if strings.Compare(clientID, channel.left.addr) == 0 || strings.Compare(clientID, channel.right.addr) == 0 {
-
+	if strings.Compare(clientID, channel.platers[mapAddress[from]].addr) == 0 || strings.Compare(clientID, channel.platers[mapAddress[from]].addr) == 0 {
+		return errors.New("error client address")
 	}
 
-	err = sc.token.TransferFrom(ctx, clientID, channel.tokenAddress, int(amount))
+	for i, player := range channel.platers {
+		if strings.Compare(player.addr, clientID) == 0 {
+			break
+		}
+		if i == len(channel.platers) {
+			return errors.New("not in player")
+		}
+	}
+	if (channel.platers[mapAddress[from]].credit)-amount <= 0 {
+		return errors.New("unenough credit")
+	}
+	channel.platers[mapAddress[from]].credit -= 10
+	channel.platers[mapAddress[to]].credit += 10
+	///event
+	return nil
+}
+func (sc *StateChannel) UpdateChannel(ctx contractapi.TransactionContextInterface, chennelName string, bestRond, status, deadline uint) error {
+	return nil
+}
 
+func (sc *StateChannel) UpdatePlayer(ctx contractapi.TransactionContextInterface, channelName string, players []Player) error {
+	return nil
+}
+func (sc *StateChannel) UpdatePayment(ctx contractapi.TransactionContextInterface, channelName string, payment Payment) error {
+	return nil
 }
