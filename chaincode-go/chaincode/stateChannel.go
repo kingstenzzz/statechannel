@@ -22,6 +22,7 @@ var mapAddress = make(map[string]uint32)
 
 // event provides an organized struct for emitting events
 type Player struct {
+	uid        uint   `json:"uid"`
 	addr       string `json:"from"`
 	credit     uint   `json:"credit"`
 	withdrawal uint   `json:"withdrawal"`
@@ -32,8 +33,9 @@ type Player struct {
 type Status uint8
 
 const (
-	OK      Status = 0
-	Pending Status = 1
+	Init    Status = 0
+	OK      Status = 1
+	Pending Status = 2
 )
 
 var channels []Channel
@@ -47,11 +49,10 @@ type Payment struct {
 
 type Channel struct {
 	tokenAddress string
-	platers      [10]Player
+	playercount  uint32
 	bestRound    int
 	status       Status
 	deadline     uint
-	payment      Payment
 }
 
 /*
@@ -59,54 +60,42 @@ event
 */
 
 // Create adds a new key with value to the world state
-func (sc *StateChannel) CreateChannel(ctx contractapi.TransactionContextInterface, other string, channelName string, channelAdd string) (uint, error) {
+func (sc *StateChannel) CreateChannel(ctx contractapi.TransactionContextInterface, channelId string) (uint, error) {
 	clientID, err := ctx.GetClientIdentity().GetID()
 	if err != nil {
 		return 0, fmt.Errorf("failed to get client id: %v", err)
 	}
-	existing, err := ctx.GetStub().GetState(channelName)
+	existing, err := ctx.GetStub().GetState(channelId)
 	var channel Channel
 	var payment Payment
 	if err != nil {
 		return 0, errors.New("Unable to interact with world state\n")
 	}
 	if existing != nil {
-		return 0, fmt.Errorf("Cannot create world state pair with key %s. Already exists\n", channelName)
+		return 0, fmt.Errorf("Cannot create world state pair with key %s. Already exists\n", channelId)
 	}
 
 	chId := channelCounter
-	channel.tokenAddress = channelAdd
-	channel.platers[1].addr = clientID
-	channel.platers[2].addr = other
-
-	mapAddress[clientID] = 1
-	mapAddress[other] = 2
+	channel.tokenAddress = clientID
 
 	channel.bestRound = -1
-	channel.status = OK
+	channel.status = Init
 	channel.deadline = 0
+	channel.playercount = 2
 
 	payment.expiry = 0
 	payment.amount = 0
 	payment.recipient = ""
-	channel.payment = payment
-
 	channels[chId] = channel
 	channelCounter += 1
 
-	channelByte, err := json.Marshal(channel)
-	if err != nil {
-		return 0, errors.New("Marshal channel struct failed\n")
-	}
-	err = ctx.GetStub().PutState(channelName, channelByte)
-
-	if err != nil {
-		return 0, errors.New("Unable to interact with world state\n")
-	}
-	err = ctx.GetStub().PutState(string(chId), []byte(channelName))
-
+	UpdateChannel(ctx, channelId, channel)
 	return channelCounter, nil
 }
+func (sc *StateChannel) JoinChannel(ctx contractapi.TransactionContextInterface, other string, channelName string, channelAdd string, amount uint) (uint, error) {
+
+}
+
 func (sc *StateChannel) CreateWithDeposit(ctx contractapi.TransactionContextInterface, other string, channelName string, channelAdd string, amount uint) (uint, error) {
 	chId, err := sc.CreateChannel(ctx, other, channelName, channelAdd)
 	if err != nil {
@@ -133,18 +122,20 @@ func (sc *StateChannel) deposit(ctx contractapi.TransactionContextInterface, chI
 }
 
 //return both playerID
-func (sc *StateChannel) getPlayers(ctx contractapi.TransactionContextInterface, channelName string) (error, string) {
+func (sc *StateChannel) GetPlayers(ctx contractapi.TransactionContextInterface, channelName string) (error, string) {
 	channelByte, err := ctx.GetStub().GetState(channelName)
 	if err != nil {
 		return errors.New("Create channel failed\n"), ""
 	}
-	channel := new(Channel)
+	resultsIterator, err := stub.GetStateByRange("Player:1", "Player:3")
+
+	players := new(Channel)
 	err = json.Unmarshal(channelByte, &channel)
 	if err != nil {
 		return errors.New("Unmarshal json faild"), ""
 	}
 	Players := ""
-	for _, player := range channel.platers {
+	for _, player := range platers {
 		Players += player.addr
 		if len(player.addr) == 0 {
 			break
@@ -201,15 +192,6 @@ func (sc *StateChannel) SendTokenTo(ctx contractapi.TransactionContextInterface,
 	channel.platers[mapAddress[from]].credit -= 10
 	channel.platers[mapAddress[to]].credit += 10
 	///event
-	return nil
-}
-func (sc *StateChannel) UpdateChannel(ctx contractapi.TransactionContextInterface, chennelName string, bestRond, status, deadline uint) error {
-	return nil
-}
 
-func (sc *StateChannel) UpdatePlayer(ctx contractapi.TransactionContextInterface, channelName string, players []Player) error {
-	return nil
-}
-func (sc *StateChannel) UpdatePayment(ctx contractapi.TransactionContextInterface, channelName string, payment Payment) error {
 	return nil
 }

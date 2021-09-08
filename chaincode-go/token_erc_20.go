@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	tokenChaincode, err := contractapi.NewChaincode(&chaincode.Token{})
+	tokenChaincode, err := contractapi.NewChaincode(&chaincode.SmartContract{})
 	if err != nil {
 		log.Panicf("Error creating token-erc-20 chaincode: %v", err)
 	}
