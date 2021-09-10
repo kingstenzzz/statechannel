@@ -4,17 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
-	"strings"
+	"strconv"
+	"time"
 )
 
 // SmartContract provides functions for transferring tokens between accounts
 type StateChannel struct {
 	token TokenInterface
 	contractapi.Contract
-}
-
-type token struct {
 }
 
 var channelCounter uint //channelCount
@@ -36,6 +35,8 @@ const (
 	Init    Status = 0
 	OK      Status = 1
 	Pending Status = 2
+	Close   Status = 3
+	Dispute Status = 4
 )
 
 var channels []Channel
@@ -52,6 +53,7 @@ type Channel struct {
 	playercount  uint32
 	bestRound    int
 	status       Status
+	openTime     timestamp.Timestamp
 	deadline     uint
 }
 
@@ -60,19 +62,19 @@ event
 */
 
 // Create adds a new key with value to the world state
-func (sc *StateChannel) CreateChannel(ctx contractapi.TransactionContextInterface, channelId string) (uint, error) {
+func (sc *StateChannel) CreateChannel(ctx contractapi.TransactionContextInterface, chName string, playerNum uint, players [][]string) (uint, error) {
 	clientID, err := ctx.GetClientIdentity().GetID()
 	if err != nil {
 		return 0, fmt.Errorf("failed to get client id: %v", err)
 	}
-	existing, err := ctx.GetStub().GetState(channelId)
+	existing, err := ctx.GetStub().GetState(chName)
 	var channel Channel
 	var payment Payment
 	if err != nil {
 		return 0, errors.New("Unable to interact with world state\n")
 	}
 	if existing != nil {
-		return 0, fmt.Errorf("Cannot create world state pair with key %s. Already exists\n", channelId)
+		return 0, fmt.Errorf("Cannot create world state pair with key %s. Already exists\n", chName)
 	}
 
 	chId := channelCounter
@@ -88,26 +90,23 @@ func (sc *StateChannel) CreateChannel(ctx contractapi.TransactionContextInterfac
 	payment.recipient = ""
 	channels[chId] = channel
 	channelCounter += 1
+	//channel.openTime ,_ = ctx.GetStub().GetTxTimestamp()
 
-	UpdateChannel(ctx, channelId, channel)
+	for id, playerObject := range players {
+		var player Player
+		player.addr = playerObject[id]
+		deposit, _ := strconv.ParseUint(playerObject[1], 10, 32)
+		player.deposit = uint(deposit)
+		player.credit = player.deposit
+		player.withdrawal = 0
+		player.uid = uint(id)
+		UpdatePlayer(ctx, player.uid, player)
+
+	}
+	UpdateChannel(ctx, chName, channel)
 	return channelCounter, nil
 }
-func (sc *StateChannel) JoinChannel(ctx contractapi.TransactionContextInterface, other string, channelName string, channelAdd string, amount uint) (uint, error) {
 
-}
-
-func (sc *StateChannel) CreateWithDeposit(ctx contractapi.TransactionContextInterface, other string, channelName string, channelAdd string, amount uint) (uint, error) {
-	chId, err := sc.CreateChannel(ctx, other, channelName, channelAdd)
-	if err != nil {
-		return 0, errors.New("Create channel failed\n")
-	}
-	err = sc.deposit(ctx, chId, amount)
-	if err != nil {
-		return 0, err
-	}
-
-	return 0, err
-}
 func (sc *StateChannel) deposit(ctx contractapi.TransactionContextInterface, chId uint, amount uint) error {
 	channel := channels[chId]
 	clientID, err := ctx.GetClientIdentity().GetID()
@@ -123,25 +122,24 @@ func (sc *StateChannel) deposit(ctx contractapi.TransactionContextInterface, chI
 
 //return both playerID
 func (sc *StateChannel) GetPlayers(ctx contractapi.TransactionContextInterface, channelName string) (error, string) {
-	channelByte, err := ctx.GetStub().GetState(channelName)
+	resultsIterator, err := ctx.GetStub().GetStateByRange("Player:1", "Player:3")
+	defer resultsIterator.Close()
 	if err != nil {
-		return errors.New("Create channel failed\n"), ""
+		return err, "Fail to read plays"
 	}
-	resultsIterator, err := stub.GetStateByRange("Player:1", "Player:3")
-
-	players := new(Channel)
-	err = json.Unmarshal(channelByte, &channel)
-	if err != nil {
-		return errors.New("Unmarshal json faild"), ""
-	}
-	Players := ""
-	for _, player := range platers {
-		Players += player.addr
-		if len(player.addr) == 0 {
-			break
+	playersInfo := ""
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, ""
 		}
+		player := new(Player)
+		json.Unmarshal(queryResponse.Value, &player)
+		playerInfo := string(player.uid) + player.addr
+		playersInfo += playerInfo
 	}
-	return nil, Players
+
+	return nil, playersInfo
 }
 
 func (sc *StateChannel) ReadAsset(ctx contractapi.TransactionContextInterface, chId string) (*Channel, error) {
@@ -162,6 +160,49 @@ func (sc *StateChannel) ReadAsset(ctx contractapi.TransactionContextInterface, c
 	return &channel, nil
 }
 
+func (sc *StateChannel) CloseChannel(ctx contractapi.TransactionContextInterface, chId string) error {
+	channelByte, err := ctx.GetStub().GetState(chId)
+	if err != nil {
+		return err
+	}
+	var channel Channel
+	err = json.Unmarshal(channelByte, &channel)
+	if channel.status == Pending {
+		return errors.New("It is pending\r\n")
+	}
+	if channel.status == Dispute {
+		return errors.New("Depositing\r\n")
+	}
+	if channel.bestRound > 10 {
+		return errors.New("Beyond the deadline\r\n")
+	}
+	now, err := ctx.GetStub().GetTxTimestamp()
+	now1 := time.Now().Unix()
+	fmt.Println(now, now1)
+	fmt.Println(time.Unix(now1, 0))
+	var totalDeposit uint = 0
+	var totalWithdrawal uint = 0
+	for id := uint32(0); id <= (channel.playercount); id++ {
+		var player Player
+		totalDeposit += player.deposit
+		player.withdrawal = player.credit
+		totalWithdrawal += player.withdrawal
+		player.deposit = 0
+		player.credit = 0
+		player.credit = player.deposit
+		player.withdrawal = 0
+		player.uid = uint(id)
+		UpdatePlayer(ctx, player.uid, player)
+	}
+	if totalDeposit != totalWithdrawal {
+		return errors.New("totalDeposit not equall totalWithdrawal")
+	}
+	channel.status = Close
+	//return token
+	return nil
+}
+
+/*
 func (sc *StateChannel) SendTokenTo(ctx contractapi.TransactionContextInterface, from, to, channelName string, amount uint) error {
 	channelByte, err := ctx.GetStub().GetState(channelName)
 	if err != nil {
@@ -174,7 +215,7 @@ func (sc *StateChannel) SendTokenTo(ctx contractapi.TransactionContextInterface,
 	if err != nil {
 		return err
 	}
-	if strings.Compare(clientID, channel.platers[mapAddress[from]].addr) == 0 || strings.Compare(clientID, channel.platers[mapAddress[from]].addr) == 0 {
+	if strings.Compare(clientID, ) == 0 || strings.Compare(clientID, channel.platers[mapAddress[from]].addr) == 0 {
 		return errors.New("error client address")
 	}
 
@@ -195,3 +236,5 @@ func (sc *StateChannel) SendTokenTo(ctx contractapi.TransactionContextInterface,
 
 	return nil
 }
+
+*/

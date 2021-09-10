@@ -24,9 +24,9 @@ func UpdateChannel(ctx contractapi.TransactionContextInterface, chId string, cha
 	return nil
 }
 
-func UpdatePlayer(ctx contractapi.TransactionContextInterface, uId uint32, player Player) error {
+func UpdatePlayer(ctx contractapi.TransactionContextInterface, uId uint, player Player) error {
 	return nil
 }
-func UpdatePayment(ctx contractapi.TransactionContextInterface, payId uint32, payment Payment) error {
+func UpdatePayment(ctx contractapi.TransactionContextInterface, payId uint, payment Payment) error {
 	return nil
 }
