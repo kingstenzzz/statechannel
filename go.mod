@@ -10,5 +10,5 @@ require (
 
 )
 replace (
-		github.com/kingstenzzz/statechannel v0.0.1 => ../
+		github.com/kingstenzzz/statechannel v0.0.1 => ./chaincode
 )

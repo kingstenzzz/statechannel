@@ -5,10 +5,10 @@ SPDX-License-Identifier: Apache-2.0
 package main
 
 import (
+	"github.com/kingstenzzz/statechannel/chaincode"
 	"log"
 
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
-	"github.com/kingstenzzz/statechannel/chaincode-go/chaincode"
 )
 
 func main() {
