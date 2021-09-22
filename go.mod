@@ -9,6 +9,3 @@ require (
 	golang.org/x/tools v0.1.0 // indirect
 
 )
-replace (
-		github.com/kingstenzzz/statechannel v0.0.1 => ./chaincode
-)
