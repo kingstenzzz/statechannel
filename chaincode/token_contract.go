@@ -53,7 +53,7 @@ func (s *Token) Mint(ctx contractapi.TransactionContextInterface, amount int) er
 	}
 
 	if amount <= 0 {
-		return fmt.Errorf("mint amount must be a positive integer")
+		return fmt.Errorf("mint Ammount must be a positive integer")
 	}
 
 	currentBalanceBytes, err := ctx.GetStub().GetState(minter)
@@ -92,7 +92,7 @@ func (s *Token) Mint(ctx contractapi.TransactionContextInterface, amount int) er
 		totalSupply, _ = strconv.Atoi(string(totalSupplyBytes)) // Error handling not needed since Itoa() was used when setting the totalSupply, guaranteeing it was an integer.
 	}
 
-	// Add the mint amount to the total supply and update the state
+	// Add the mint Ammount to the total supply and update the state
 	totalSupply += amount
 	err = ctx.GetStub().PutState(totalSupplyKey, []byte(strconv.Itoa(totalSupply)))
 	if err != nil {
@@ -135,7 +135,7 @@ func (s *Token) Burn(ctx contractapi.TransactionContextInterface, amount int) er
 	}
 
 	if amount <= 0 {
-		return errors.New("burn amount must be a positive integer")
+		return errors.New("burn Ammount must be a positive integer")
 	}
 
 	currentBalanceBytes, err := ctx.GetStub().GetState(minter)
@@ -172,7 +172,7 @@ func (s *Token) Burn(ctx contractapi.TransactionContextInterface, amount int) er
 
 	totalSupply, _ := strconv.Atoi(string(totalSupplyBytes)) // Error handling not needed since Itoa() was used when setting the totalSupply, guaranteeing it was an integer.
 
-	// Subtract the burn amount to the total supply and update the state
+	// Subtract the burn Ammount to the total supply and update the state
 	totalSupply -= amount
 	err = ctx.GetStub().PutState(totalSupplyKey, []byte(strconv.Itoa(totalSupply)))
 	if err != nil {
@@ -195,8 +195,8 @@ func (s *Token) Burn(ctx contractapi.TransactionContextInterface, amount int) er
 	return nil
 }
 
-// Transfer transfers tokens from client account to recipient account
-// recipient account must be a valid clientID as returned by the ClientID() function
+// Transfer transfers tokens from client account to Recipient account
+// Recipient account must be a valid clientID as returned by the ClientID() function
 // This function triggers a Transfer event
 func (s *Token) Transfer(ctx contractapi.TransactionContextInterface, recipient string, amount int) error {
 
@@ -300,7 +300,7 @@ func (s *Token) TotalSupply(ctx contractapi.TransactionContextInterface) (int, e
 }
 
 // Approve allows the spender to withdraw from the calling client's token account
-// The spender can withdraw multiple times if necessary, up to the value amount
+// The spender can withdraw multiple times if necessary, up to the value Ammount
 // This function triggers an Approval event
 func (s *Token) Approve(ctx contractapi.TransactionContextInterface, spender string, value int) error {
 
@@ -333,12 +333,12 @@ func (s *Token) Approve(ctx contractapi.TransactionContextInterface, spender str
 		return fmt.Errorf("failed to set event: %v", err)
 	}
 
-	log.Printf("client %s approved a withdrawal allowance of %d for spender %s", owner, value, spender)
+	log.Printf("client %s approved a Withdrawal allowance of %d for spender %s", owner, value, spender)
 
 	return nil
 }
 
-// Allowance returns the amount still available for the spender to withdraw from the owner
+// Allowance returns the Ammount still available for the spender to withdraw from the owner
 func (s *Token) Allowance(ctx contractapi.TransactionContextInterface, owner string, spender string) (int, error) {
 
 	// Create allowanceKey
@@ -347,7 +347,7 @@ func (s *Token) Allowance(ctx contractapi.TransactionContextInterface, owner str
 		return 0, fmt.Errorf("failed to create the composite key for prefix %s: %v", allowancePrefix, err)
 	}
 
-	// Read the allowance amount from the world state
+	// Read the allowance Ammount from the world state
 	allowanceBytes, err := ctx.GetStub().GetState(allowanceKey)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read allowance for %s from world state: %v", allowanceKey, err)
@@ -367,7 +367,7 @@ func (s *Token) Allowance(ctx contractapi.TransactionContextInterface, owner str
 	return allowance, nil
 }
 
-// TransferFrom transfers the value amount from the "from" address to the "to" address
+// TransferFrom transfers the value Ammount from the "from" address to the "to" address
 // This function triggers a Transfer event
 func (s *Token) TransferFrom(ctx contractapi.TransactionContextInterface, from string, to string, value int) error {
 
@@ -437,7 +437,7 @@ func transferHelper(ctx contractapi.TransactionContextInterface, from string, to
 	}
 
 	if value < 0 { // transfer of 0 is allowed in ERC-20, so just validate against negative amounts
-		return fmt.Errorf("transfer amount cannot be negative")
+		return fmt.Errorf("transfer Ammount cannot be negative")
 	}
 
 	fromCurrentBalanceBytes, err := ctx.GetStub().GetState(from)
@@ -457,11 +457,11 @@ func transferHelper(ctx contractapi.TransactionContextInterface, from string, to
 
 	toCurrentBalanceBytes, err := ctx.GetStub().GetState(to)
 	if err != nil {
-		return fmt.Errorf("failed to read recipient account %s from world state: %v", to, err)
+		return fmt.Errorf("failed to read Recipient account %s from world state: %v", to, err)
 	}
 
 	var toCurrentBalance int
-	// If recipient current balance doesn't yet exist, we'll create it with a current balance of 0
+	// If Recipient current balance doesn't yet exist, we'll create it with a current balance of 0
 	if toCurrentBalanceBytes == nil {
 		toCurrentBalance = 0
 	} else {
@@ -482,7 +482,7 @@ func transferHelper(ctx contractapi.TransactionContextInterface, from string, to
 	}
 
 	log.Printf("client %s balance updated from %d to %d", from, fromCurrentBalance, fromUpdatedBalance)
-	log.Printf("recipient %s balance updated from %d to %d", to, toCurrentBalance, toUpdatedBalance)
+	log.Printf("Recipient %s balance updated from %d to %d", to, toCurrentBalance, toUpdatedBalance)
 
 	return nil
 }
