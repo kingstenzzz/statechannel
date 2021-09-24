@@ -144,6 +144,12 @@ func (sc *StateChannel) EixtChanel(ctx contractapi.TransactionContextInterface, 
 
 //update a batch of player according to the status of offchain
 func (sc *StateChannel) UpdateBatchStatus(ctx contractapi.TransactionContextInterface, chName string, playerGroup string) error {
+	players := []Player{}
+	println(chName, playerGroup)
+	err := json.Unmarshal([]byte(playerGroup), &players)
+	if err != nil {
+		return err
+	}
 
 	return nil
 
