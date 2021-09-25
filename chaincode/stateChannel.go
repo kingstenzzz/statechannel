@@ -98,7 +98,7 @@ func (sc *StateChannel) CreateChannel(ctx contractapi.TransactionContextInterfac
 	fmt.Println("create channel")
 	return channelCounter, nil
 }
-func (sc *StateChannel) JoinChanel(ctx contractapi.TransactionContextInterface, chName string, deposit int) error {
+func (sc *StateChannel) JoinChannel(ctx contractapi.TransactionContextInterface, chName string, deposit int) error {
 	clientID, err := ctx.GetClientIdentity().GetID()
 	channelByte, err := ctx.GetStub().GetState(chName)
 	var channel Channel
@@ -107,18 +107,35 @@ func (sc *StateChannel) JoinChanel(ctx contractapi.TransactionContextInterface, 
 		return err
 	}
 	channel.PlayerCount += 1
+	channel.Status = OK
 	var player Player
 	player.Uid = channel.PlayerCount
 	player.Addr = clientID
 	player.Deposit = deposit
 	player.Credit = deposit
-	UpdatePlayer(ctx, player.Uid, player)
+
+	playerKey := fmt.Sprintf("%s-%s%d", chName, "Player", player.Uid)
+	playerByte, err := ctx.GetStub().GetState(playerKey)
+	if err != nil {
+		return err
+	}
+	if playerByte != nil {
+		return errors.New("This player is existed")
+	}
+	playerByte, err = json.Marshal(player)
+	if err != nil {
+		return err
+	}
+	err = ctx.GetStub().PutState(playerKey, playerByte)
+	if err != nil {
+		return err
+	}
 	UpdateChannel(ctx, chName, channel)
 	return nil
 }
 
 func (sc *StateChannel) EixtChanel(ctx contractapi.TransactionContextInterface, chName, playerID string, deposit int) error {
-	playerKey := "Player" + playerID
+	playerKey := fmt.Sprintf("%s-%s%s", chName, "Player", playerID)
 	playerByte, err := ctx.GetStub().GetState(playerKey)
 	var player Player
 	err = json.Unmarshal(playerByte, &player)
@@ -150,9 +167,10 @@ func (sc *StateChannel) UpdateBatchStatus(ctx contractapi.TransactionContextInte
 	if err != nil {
 		return err
 	}
-
+	for _, player := range players {
+		UpdatePlayer(ctx, chName, player.Uid, player)
+	}
 	return nil
-
 }
 
 func (sc *StateChannel) deposit(ctx contractapi.TransactionContextInterface, chName string, amount int) error {
@@ -172,7 +190,16 @@ func (sc *StateChannel) deposit(ctx contractapi.TransactionContextInterface, chN
 
 //return both playerID
 func (sc *StateChannel) GetPlayers(ctx contractapi.TransactionContextInterface, channelName string) (string, error) {
-	resultsIterator, err := ctx.GetStub().GetStateByRange("Player1", "Player5")
+	channelByte, err := ctx.GetStub().GetState(channelName)
+	if err != nil {
+		return "read channel error", err
+	}
+	var channel Channel
+	json.Unmarshal(channelByte, &channel)
+	playerNum := channel.PlayerCount
+	playerKey1 := fmt.Sprintf("%s-%s%d", channelName, "Player", 1)
+	playerKey5 := fmt.Sprintf("%s-%s%d", channelName, "Player", playerNum+1)
+	resultsIterator, err := ctx.GetStub().GetStateByRange(playerKey1, playerKey5)
 	if err != nil {
 		return "Fail to read plays", err
 	}
@@ -188,7 +215,7 @@ func (sc *StateChannel) GetPlayers(ctx contractapi.TransactionContextInterface, 
 		playerInfo := fmt.Sprintf("player:%d--%s\r\n", player.Uid, player.Addr)
 		playersInfo += playerInfo
 	}
-
+	println(playersInfo)
 	return playersInfo, nil
 }
 
@@ -204,8 +231,8 @@ func (sc *StateChannel) ReadAsset(ctx contractapi.TransactionContextInterface, c
 	return string(assetJSON), nil
 }
 
-func (sc *StateChannel) CloseChannel(ctx contractapi.TransactionContextInterface, chId string) error {
-	channelByte, err := ctx.GetStub().GetState(chId)
+func (sc *StateChannel) CloseChannel(ctx contractapi.TransactionContextInterface, chName string) error {
+	channelByte, err := ctx.GetStub().GetState(chName)
 	if err != nil {
 		return err
 	}
@@ -236,7 +263,7 @@ func (sc *StateChannel) CloseChannel(ctx contractapi.TransactionContextInterface
 		player.Credit = player.Deposit
 		player.Withdrawal = 0
 		player.Uid = id
-		UpdatePlayer(ctx, player.Uid, player)
+		UpdatePlayer(ctx, chName, player.Uid, player)
 	}
 	if totalDeposit != totalWithdrawal {
 		return errors.New("totalDeposit not equall totalWithdrawal")
@@ -283,11 +310,11 @@ func (sc *StateChannel) SendTokenTo(ctx contractapi.TransactionContextInterface,
 
 */
 
-func Query(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+func (sc *StateChannel) Query(ctx contractapi.TransactionContextInterface, args []string) peer.Response {
 	if len(args) != 1 {
 		return shim.Error("指定的参数错误，必须且只能指定相应的Key")
 	}
-	result, err := stub.GetState(args[0])
+	result, err := ctx.GetStub().GetState(args[0])
 	if err != nil {
 		return shim.Error("根据指定的" + args[0] + "查询数据时发生错误")
 	}
@@ -295,4 +322,10 @@ func Query(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 		return shim.Error("根据指定的" + args[0] + "没有查询到相应的数据")
 	}
 	return shim.Success(result)
+}
+
+func (sc *StateChannel) Disputr(ctx contractapi.TransactionContextInterface, chName, playerID string) error {
+
+	return nil
+
 }

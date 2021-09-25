@@ -26,9 +26,14 @@ func UpdateChannel(ctx contractapi.TransactionContextInterface, chId string, cha
 	return nil
 }
 
-func UpdatePlayer(ctx contractapi.TransactionContextInterface, playerId int, player Player) error {
-	playerKey := fmt.Sprintf("%s%d", "Player", playerId)
-	playerByte, err := json.Marshal(player)
+func UpdatePlayer(ctx contractapi.TransactionContextInterface, chName string, playerId int, player Player) error {
+
+	playerKey := fmt.Sprintf("%s-%s%d", chName, "Player", playerId)
+	playerByte, err := ctx.GetStub().GetState(playerKey)
+	if err != nil {
+		return err
+	}
+	playerByte, err = json.Marshal(player)
 	if err != nil {
 		return err
 	}
